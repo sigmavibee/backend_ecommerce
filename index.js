@@ -17,13 +17,12 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false } // Penting untuk koneksi eksternal
 });
 
-
 // Endpoint untuk test koneksi
 app.get('/', (req, res) => {
   res.send('Welcome to backend ecommerce!');
 });
 
-// Endpoint untuk login
+//1. Endpoint untuk login
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -63,7 +62,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Endpoint untuk register user baru
+//2. Endpoint untuk register user baru
 app.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -128,15 +127,103 @@ const authenticateJWT = (req, res, next) => {
 // Endpoint untuk mendapatkan data user yang sudah login
 app.get('/user', authenticateJWT, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const result = await pool.query(
+      'SELECT id, name, email, role FROM users WHERE id = $1', 
+      [req.user.id]
+    );
+    
     if (result.rows.length > 0) {
-      res.json(result.rows[0]);
+      res.json({
+        id: result.rows[0].id,
+        name: result.rows[0].name,
+        email: result.rows[0].email,
+        role: result.rows[0].role
+      });
     } else {
-      res.status(404).send('User not found');
+      res.status(404).json({ message: 'User not found' });
     }
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server error');
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+//products
+
+// Endpoint untuk mendapatkan data produk
+// Get all products
+app.get('/products', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM products WHERE is_active = true');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create product
+app.post('/products', authenticateJWT, async (req, res) => {
+  const { name, description, price, stock, image_url } = req.body;
+  
+  try {
+    const result = await pool.query(
+      `INSERT INTO products 
+       (name, description, price, stock, image_url) 
+       VALUES ($1, $2, $3, $4, $5) 
+       RETURNING *`,
+      [name, description, price, stock, image_url]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update product
+app.put('/products/:id', authenticateJWT, async (req, res) => {
+  const { id } = req.params;
+  const { name, description, price, stock, image_url } = req.body;
+  
+  try {
+    const result = await pool.query(
+      `UPDATE products SET 
+       name = $1, 
+       description = $2, 
+       price = $3, 
+       stock = $4, 
+       image_url = $5,
+       updated_at = NOW()
+       WHERE id = $6 
+       RETURNING *`,
+      [name, description, price, stock, image_url, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete product (soft delete)
+app.delete('/products/:id', authenticateJWT, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    await pool.query(
+      'UPDATE products SET is_active = false WHERE id = $1',
+      [id]
+    );
+    res.status(204).end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
