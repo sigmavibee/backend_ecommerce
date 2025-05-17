@@ -25,7 +25,7 @@ app.get('/', (req, res) => {
 
 // Endpoint untuk login
 app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
   try {
     const result = await pool.query('SELECT * FROM users WHERE email = $1 AND password = $2', [email, password]);
