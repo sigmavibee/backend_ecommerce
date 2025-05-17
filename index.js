@@ -28,11 +28,11 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const result = await pool.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
+    const result = await pool.query('SELECT * FROM users WHERE email = $1 AND password = $2', [email, password]);
     
     if (result.rows.length > 0) {
       const user = result.rows[0];
-      const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
       res.json({ token });
     } else {
       res.status(401).send('Invalid credentials');
