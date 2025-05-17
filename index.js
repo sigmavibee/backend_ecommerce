@@ -67,33 +67,43 @@ app.post('/login', async (req, res) => {
 app.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
 
-  // Validate required fields
+  // Enhanced validation
   if (!name || !email || !password) {
-    return res.status(400).json({ message: 'Name, email, and password are required.' });
+    return res.status(400).json({ 
+      message: 'All fields are required',
+      required: ['name', 'email', 'password'] 
+    });
+  }
+
+  // Email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ message: 'Invalid email format' });
+  }
+
+  // Password length check
+  if (password.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters' });
   }
 
   try {
     const result = await pool.query(
-      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, email, password, 'customer']
+      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
+      [name, email, password, 'customer'] // Store plain password (not recommended for production)
     );
-    const newUser = result.rows[0];
+    
     res.status(201).json({
       message: 'Registration successful',
-      user: {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role
-      }
+      user: result.rows[0]
     });
+    
   } catch (err) {
-    console.error(err);
-    // Handle duplicate email error
-    if (err.code === '23505') {
-      res.status(400).json({ message: 'Email already registered.' });
+    console.error('Registration error:', err);
+    
+    if (err.code === '23505') { // Unique violation (duplicate email)
+      res.status(400).json({ message: 'Email already registered' });
     } else {
-      res.status(500).json({ message: 'Server error', error: err.message });
+      res.status(500).json({ message: 'Server error during registration' });
     }
   }
 });
