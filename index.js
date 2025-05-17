@@ -50,7 +50,7 @@ app.post('/register', async (req, res) => {
   try {
     const result = await pool.query(
       'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, email, password, 'user']
+      [name, email, password, 'customer']
     );
     const newUser = result.rows[0];
     res.status(201).json(newUser);
