@@ -67,16 +67,34 @@ app.post('/login', async (req, res) => {
 app.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
 
+  // Validate required fields
+  if (!name || !email || !password) {
+    return res.status(400).json({ message: 'Name, email, and password are required.' });
+  }
+
   try {
     const result = await pool.query(
       'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *',
       [name, email, password, 'customer']
     );
     const newUser = result.rows[0];
-    res.status(201).json(newUser);
+    res.status(201).json({
+      message: 'Registration successful',
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role
+      }
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server error');
+    // Handle duplicate email error
+    if (err.code === '23505') {
+      res.status(400).json({ message: 'Email already registered.' });
+    } else {
+      res.status(500).json({ message: 'Server error', error: err.message });
+    }
   }
 });
 
