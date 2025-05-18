@@ -78,7 +78,7 @@ app.post('/login', async (req, res) => {
 });
 
 // Endpoint to refresh access token
-app.post('/refresh-token', (req, res) => {
+app.post('/token', (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken || !refreshTokens.includes(refreshToken)) {
     return res.status(403).json({ message: 'Refresh token not found, login again' });
