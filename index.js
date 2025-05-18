@@ -23,6 +23,9 @@ app.get('/', (req, res) => {
 });
 
 //1. Endpoint untuk login
+// In-memory store for refresh tokens (for demo; use DB/Redis in production)
+let refreshTokens = [];
+
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -34,13 +37,18 @@ app.post('/login', async (req, res) => {
     
     if (result.rows.length > 0) {
       const user = result.rows[0];
-      const token = jwt.sign(
+      const accessToken = jwt.sign(
         { id: user.id, email: user.email }, 
         process.env.JWT_SECRET, 
         { expiresIn: '1h' }
       );
-      
-      // Return both user data and token in the expected format
+      const refreshToken = jwt.sign(
+        { id: user.id, email: user.email }, 
+        process.env.JWT_REFRESH_SECRET, 
+        { expiresIn: '7d' }
+      );
+      refreshTokens.push(refreshToken);
+
       res.json({
         user: {
           id: user.id,
@@ -48,7 +56,8 @@ app.post('/login', async (req, res) => {
           email: user.email,
           role: user.role
         },
-        token: token
+        token: accessToken,
+        refreshToken: refreshToken
       });
     } else {
       res.status(401).json({ message: 'Invalid credentials' });
@@ -57,9 +66,33 @@ app.post('/login', async (req, res) => {
     console.error('Login error:', err);
     res.status(500).json({ 
       message: 'Server error',
-      error: err.message // Include error details for debugging
+      error: err.message
     });
   }
+});
+
+// Endpoint to refresh access token
+app.post('/token', (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken || !refreshTokens.includes(refreshToken)) {
+    return res.status(403).json({ message: 'Refresh token not found, login again' });
+  }
+  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ message: 'Invalid refresh token' });
+    const accessToken = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    res.json({ token: accessToken });
+  });
+});
+
+// Endpoint to logout (invalidate refresh token)
+app.post('/logout', (req, res) => {
+  const { refreshToken } = req.body;
+  refreshTokens = refreshTokens.filter(token => token !== refreshToken);
+  res.status(204).end();
 });
 
 //2. Endpoint untuk register user baru
