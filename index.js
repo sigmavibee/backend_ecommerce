@@ -149,7 +149,14 @@ app.post('/register', async (req, res) => {
 
 // Middleware untuk autentikasi JWT
 const authenticateJWT = (req, res, next) => {
-  const token = req.headers['authorization'];
+  const authHeader = req.headers['authorization'];
+  let token;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else {
+    token = authHeader;
+  }
 
   if (!token) {
     return res.status(401).send('Access denied');
