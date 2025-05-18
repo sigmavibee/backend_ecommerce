@@ -204,8 +204,18 @@ app.get('/products', async (req, res) => {
 
 // Create product
 app.post('/products', authenticateJWT, async (req, res) => {
+  // Only allow admin
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Only admin can create products' });
+  }
+
   const { name, description, price, stock, image_url } = req.body;
-  
+
+  // Basic validation
+  if (!name || !description || !price || !stock || !image_url) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
   try {
     const result = await pool.query(
       `INSERT INTO products 
@@ -223,6 +233,9 @@ app.post('/products', authenticateJWT, async (req, res) => {
 
 // Update product
 app.put('/products/:id', authenticateJWT, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Only admin can create products' });
+  }
   const { id } = req.params;
   const { name, description, price, stock, image_url } = req.body;
   
@@ -253,6 +266,9 @@ app.put('/products/:id', authenticateJWT, async (req, res) => {
 
 // Delete product (soft delete)
 app.delete('/products/:id', authenticateJWT, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Only admin can create products' });
+  }
   const { id } = req.params;
   
   try {
