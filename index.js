@@ -24,6 +24,7 @@ app.get('/', (req, res) => {
 
 //1. Endpoint untuk login
 // In-memory store for refresh tokens (for demo; use DB/Redis in production)
+let refreshTokens = []; // Add this line to define the array
 app.post('/login', async (req, res) => {
   // Add this validation at the start
   if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
