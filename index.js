@@ -24,9 +24,15 @@ app.get('/', (req, res) => {
 
 //1. Endpoint untuk login
 // In-memory store for refresh tokens (for demo; use DB/Redis in production)
-let refreshTokens = [];
-
 app.post('/login', async (req, res) => {
+  // Add this validation at the start
+  if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+    return res.status(500).json({
+      message: 'Server configuration error',
+      error: 'JWT secrets not configured'
+    });
+  }
+
   const { email, password } = req.body;
 
   try {
@@ -72,7 +78,7 @@ app.post('/login', async (req, res) => {
 });
 
 // Endpoint to refresh access token
-app.post('/token', (req, res) => {
+app.post('/refresh-token', (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken || !refreshTokens.includes(refreshToken)) {
     return res.status(403).json({ message: 'Refresh token not found, login again' });
