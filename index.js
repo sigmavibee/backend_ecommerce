@@ -3,6 +3,8 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 
 const app = express();
 const port = 10000;
@@ -227,6 +229,14 @@ app.delete('/products/:id', authenticateJWT, async (req, res) => {
   } catch (err) {
     handleError(res, err, 'Delete product error');
   }
+});
+
+// Serve static files from the uploads directory
+app.use('/uploads', express.static('uploads'));
+
+app.post('/api/upload', upload.single('image'), (req, res) => {
+  const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+  res.json({ imageUrl });
 });
 
 // Special endpoints (for debugging/admin)
