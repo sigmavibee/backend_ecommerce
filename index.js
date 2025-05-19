@@ -239,6 +239,115 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   res.json({ imageUrl });
 });
 
+//Orders section
+// Create order
+app.post('/orders', authenticateJWT, async (req, res) => {
+  if (req.user.role !== 'customer') {
+    return res.status(403).json({ message: 'Only customers can create orders' });
+  }
+
+  const { items, shipping_address, payment_method } = req.body;
+
+  if (!items || !Array.isArray(items) || items.length === 0 || !shipping_address) {
+    return res.status(400).json({ message: 'Missing required order fields' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    let totalAmount = 0;
+
+    // Calculate total amount
+    for (const item of items) {
+      const result = await client.query(
+        'SELECT price, stock FROM products WHERE id = $1 AND is_active = true',
+        [item.product_id]
+      );
+      if (result.rows.length === 0) throw new Error('Invalid product');
+      const { price, stock } = result.rows[0];
+      if (item.quantity > stock) throw new Error('Insufficient stock');
+      totalAmount += price * item.quantity;
+    }
+
+    // Insert order into table
+    const orderResult = await client.query(
+      `INSERT INTO orders (user_id, total_amount, status, payment_method, shipping_address, created_at, updated_at) 
+       VALUES ($1, $2, 'pending', $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) 
+       RETURNING id`,
+      [req.user.id, totalAmount, payment_method || 'manual_transfer', shipping_address]
+    );
+
+    const orderId = orderResult.rows[0].id;
+
+    // Insert order_items (you must already have this table created)
+    for (const item of items) {
+      const result = await client.query('SELECT price FROM products WHERE id = $1', [item.product_id]);
+      const price = result.rows[0].price;
+
+      await client.query(
+        `INSERT INTO order_items (order_id, product_id, quantity, price) 
+         VALUES ($1, $2, $3, $4)`,
+        [orderId, item.product_id, item.quantity, price]
+      );
+
+      // Optional: reduce stock
+      await client.query(
+        'UPDATE products SET stock = stock - $1 WHERE id = $2',
+        [item.quantity, item.product_id]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ message: 'Order created successfully', orderId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    handleError(res, err, 'Order creation failed');
+  } finally {
+    client.release();
+  }
+});
+
+// 🔄 Update Order Status Route (Admin)
+app.put('/orders/:id/status', authenticateJWT, async (req, res) => {
+  if (!isAdmin(req)) {
+    return res.status(403).json({ message: 'Admins only' });
+  }
+
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
+      [status, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    handleError(res, err, 'Update status error');
+  }
+});
+
+// Admin Delete Order
+app.delete('/orders/:id', authenticateJWT, async (req, res) => {
+  if (!isAdmin(req)) {
+    return res.status(403).json({ message: 'Admins only' });
+  }
+
+  try {
+    await pool.query('DELETE FROM orders WHERE id = $1', [req.params.id]);
+    res.status(204).end();
+  } catch (err) {
+    handleError(res, err, 'Delete order error');
+  }
+});
+
+
 // Special endpoints (for debugging/admin)
 app.get('/special/users', async (req, res) => {
   try {
