@@ -189,6 +189,20 @@ app.post('/products', authenticateJWT, async (req, res) => {
   }
 });
 
+//get product by id
+app.get('/products/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM products WHERE id = $1 AND is_active = true', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    handleError(res, err, 'Get product by ID error');
+  }
+});
+
 // Update product (admin only)
 app.put('/products/:id', authenticateJWT, async (req, res) => {
   if (!isAdmin(req)) {
