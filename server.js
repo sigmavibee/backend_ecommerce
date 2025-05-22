@@ -5,7 +5,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
-const authenticateJWT = require('./middlewares/auth'); // Add this line
+const authenticateJWT = require('./middlewares/auth'); // Use middleware from file
 // Initialize app
 const app = express();
 const port = process.env.PORT || 10000;
@@ -30,17 +30,8 @@ const helpers = {
   isAdmin: (req) => req.user && req.user.role === 'admin'
 };
 
-// Auth Middleware
-const authenticateJWT = (req, res, next) => {
-  const token = req.headers['authorization'];
-  if (!token) return res.status(401).json({ message: 'Access denied: No token' });
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ message: 'Invalid token', error: err.message });
-    req.user = user;
-    next();
-  });
-};
+// Auth Middleware is now imported from './middlewares/auth'
 
 // Token Management
 const refreshTokens = [];
@@ -75,4 +66,4 @@ app.use('/upload', routes.upload);
 app.get('/', (req, res) => res.send('Welcome to backend ecommerce!'));
 
 // Start server
-app.listen(port, () => console.log(`Server running on port ${port}`));
+app.listen(port, () => console.log(`Server running on port ${port}`));app.get('/', (_, res) => res.send('Welcome to backend ecommerce!'));
