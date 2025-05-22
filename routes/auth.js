@@ -1,4 +1,4 @@
-module.exports = (pool, helpers, tokenService, refreshTokens) => {
+module.exports = (pool, helpers, tokenService, refreshTokens, authenticateJWT) => {
   const router = require('express').Router();
 
   router.post('/login', async (req, res) => {
@@ -59,7 +59,7 @@ module.exports = (pool, helpers, tokenService, refreshTokens) => {
     }
   });
 
-  router.get('/user', authenticateJWT, async (req, res) => {
+   router.get('/user', authenticateJWT, async (req, res) => {
     try {
       const result = await pool.query(
         'SELECT id, name, email, role FROM users WHERE id = $1',

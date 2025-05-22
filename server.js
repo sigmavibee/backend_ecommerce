@@ -5,7 +5,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
-
+const authenticateJWT = require('./middlewares/auth'); // Add this line
 // Initialize app
 const app = express();
 const port = process.env.PORT || 10000;
@@ -59,7 +59,7 @@ const tokenService = {
 
 // Routes
 const routes = {
-  auth: require('./routes/auth')(pool, helpers, tokenService, refreshTokens),
+  auth: require('./routes/auth')(pool, helpers, tokenService, refreshTokens, authenticateJWT),
   products: require('./routes/products')(pool, helpers, authenticateJWT),
   orders: require('./routes/orders')(pool, helpers, authenticateJWT),
   upload: require('./routes/upload')(upload)
